@@ -22,8 +22,7 @@ export default function ReconciliationView() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [_matchRes, txRes, receiptRes] = await Promise.all([
-      fetch('/api/run-matching').catch(() => null), // We'll query differently
+    const [txRes, receiptRes] = await Promise.all([
       fetch('/api/transactions?unmatched_only=false&limit=500'),
       fetch('/api/receipts?limit=200'),
     ])
