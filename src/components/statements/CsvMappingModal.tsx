@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -91,6 +92,7 @@ export default function CsvMappingModal({
   })
 
   const onSubmit = async (values: MappingFormValues) => {
+    const toastId = `import-${statementId}`
     const body = {
       date_col: values.date_col,
       description_col: values.description_col,
@@ -100,6 +102,8 @@ export default function CsvMappingModal({
       card_last4: values.card_last4,
     }
 
+    toast.loading('Importing transactions…', { id: toastId })
+
     const res = await fetch(`/api/statements/${statementId}/confirm-mapping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -108,13 +112,13 @@ export default function CsvMappingModal({
 
     if (!res.ok) {
       const err = await res.json()
-      toast.error(err.error ?? 'Failed to confirm mapping')
+      toast.error(err.error ?? 'Failed to confirm mapping', { id: toastId })
       return
     }
 
     const data = await res.json()
     const count = data.transaction_count ?? 0
-    toast.success(`Import complete — ${count} transaction${count === 1 ? '' : 's'} imported`)
+    toast.success(`Import complete — ${count} transaction${count === 1 ? '' : 's'} imported`, { id: toastId })
     onConfirmed()
     onOpenChange(false)
   }
@@ -269,12 +273,29 @@ export default function CsvMappingModal({
             </div>
           </div>
 
+          {isSubmitting && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Parsing CSV and importing transactions…
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full animate-[progress_1.5s_ease-in-out_infinite] rounded-full bg-[#27C5F5]" />
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || (!isHighConfidence && false)}>
-              {isSubmitting ? 'Importing…' : 'Confirm & Import'}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Importing…
+                </span>
+              ) : 'Confirm & Import'}
             </Button>
           </div>
         </form>
