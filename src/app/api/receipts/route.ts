@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { apiSuccess, apiError } from '@/lib/api/response'
+import { extractReceiptData } from '@/lib/gemini'
 import { CreateReceiptSchema } from '@/types'
 import type { Database } from '@/types/supabase'
 
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     return apiError('File exceeds 10 MB limit', 'FILE_TOO_LARGE', 422)
   }
 
+  // Insert receipt record
   const { data: receiptData, error } = await supabase
     .from('receipts')
     .insert({
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
       file_name: parsed.data.file_name,
       file_size: parsed.data.file_size,
       file_mime_type: parsed.data.file_mime_type,
-      status: 'pending',
+      status: 'processing',
     })
     .select()
     .single()
@@ -70,24 +72,46 @@ export async function POST(request: NextRequest) {
   if (error) return apiError(error.message, 'INTERNAL_ERROR', 500)
   const receipt = receiptData as ReceiptRow
 
-  // Trigger Edge Function
+  // Process with Gemini inline
   try {
-    const edgeFnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-receipt`
-    await fetch(edgeFnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({
-        receipt_id: receipt.id,
-        storage_path: parsed.data.storage_path,
-        mime_type: parsed.data.file_mime_type,
-      }),
-    })
-  } catch {
-    // Non-fatal: Edge Function will retry via status=pending
-  }
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('receipts')
+      .download(parsed.data.storage_path)
 
-  return apiSuccess({ id: receipt.id, status: receipt.status }, 201)
+    if (downloadError || !fileData) throw new Error('Could not download file')
+
+    const arrayBuffer = await fileData.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+
+    const extracted = await extractReceiptData(base64, parsed.data.file_mime_type)
+
+    await supabase
+      .from('receipts')
+      .update({
+        status: 'complete',
+        vendor_name: extracted.vendor_name,
+        transaction_date: extracted.transaction_date,
+        total_amount: extracted.total_amount,
+        subtotal_amount: extracted.subtotal_amount,
+        gst_hst_amount: extracted.gst_hst_amount,
+        pst_amount: extracted.pst_amount,
+        payment_method: extracted.payment_method,
+        card_last4: extracted.card_last4,
+        category: extracted.category,
+        expense_type: extracted.expense_type,
+        location: extracted.location,
+        receipt_number: extracted.receipt_number,
+      })
+      .eq('id', receipt.id)
+
+    return apiSuccess({ id: receipt.id, status: 'complete' }, 201)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Extraction failed'
+    await supabase
+      .from('receipts')
+      .update({ status: 'failed', extraction_error: message })
+      .eq('id', receipt.id)
+
+    return apiSuccess({ id: receipt.id, status: 'failed', error: message }, 201)
+  }
 }

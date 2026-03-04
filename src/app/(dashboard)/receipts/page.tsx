@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import ReceiptUploadZone from '@/components/receipts/ReceiptUploadZone'
 import ReceiptTable from '@/components/receipts/ReceiptTable'
+import ReprocessButton from '@/components/receipts/ReprocessButton'
 import type { Receipt } from '@/types'
 
 export default async function ReceiptsPage() {
@@ -24,13 +25,18 @@ export default async function ReceiptsPage() {
     } as unknown as Receipt
   })
 
+  const pendingCount = receipts.filter((r) => r.status === 'pending' || r.status === 'failed').length
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Receipts</h2>
-        <p className="text-muted-foreground mt-1">
-          Upload receipts and let AI extract the details automatically.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Receipts</h2>
+          <p className="text-muted-foreground mt-1">
+            Upload receipts and let AI extract the details automatically.
+          </p>
+        </div>
+        {pendingCount > 0 && <ReprocessButton pendingCount={pendingCount} />}
       </div>
       <ReceiptUploadZone />
       <ReceiptTable initialReceipts={receipts} />
