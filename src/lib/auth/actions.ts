@@ -20,7 +20,7 @@ export async function signIn(email: string, password: string): Promise<{ error?:
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { error: error.message }
-  redirect('/')
+  redirect('/dashboard')
 }
 
 export async function signOut(): Promise<void> {
@@ -42,5 +42,5 @@ export async function updatePassword(newPassword: string): Promise<{ error?: str
   const supabase = await createClient()
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error: error.message }
-  redirect('/')
+  redirect('/dashboard')
 }

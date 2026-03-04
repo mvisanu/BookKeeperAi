@@ -32,13 +32,13 @@ export async function middleware(request: NextRequest) {
 
   // Protected dashboard routes — redirect to sign-in if unauthenticated
   const isDashboardRoute =
+    pathname.startsWith('/dashboard') ||
     pathname.startsWith('/receipts') ||
     pathname.startsWith('/statements') ||
     pathname.startsWith('/transactions') ||
     pathname.startsWith('/matching') ||
     pathname.startsWith('/reconciliation') ||
-    pathname.startsWith('/settings') ||
-    pathname === '/'
+    pathname.startsWith('/settings')
 
   if (isDashboardRoute && !user) {
     const redirectUrl = request.nextUrl.clone()
@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthRoute && user) {
     const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/'
+    redirectUrl.pathname = '/dashboard'
     return NextResponse.redirect(redirectUrl)
   }
 

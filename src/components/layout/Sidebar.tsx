@@ -9,7 +9,7 @@ import { signOut } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/receipts', label: 'Receipts', icon: Receipt },
   { href: '/statements', label: 'Bank Statements', icon: FileText },
   { href: '/transactions', label: 'Transactions', icon: CreditCard },
@@ -39,7 +39,7 @@ function SidebarContent({ userEmail, onNavClick }: { userEmail: string; onNavCli
             onClick={onNavClick}
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-              href === '/' ? pathname === '/' : pathname.startsWith(href)
+              href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
                 ? 'text-[#27C5F5] shadow-[0_0_12px_2px_rgba(39,197,245,0.35)] bg-[rgba(39,197,245,0.1)]'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
             )}
