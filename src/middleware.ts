@@ -34,7 +34,10 @@ export async function middleware(request: NextRequest) {
   const isDashboardRoute =
     pathname.startsWith('/receipts') ||
     pathname.startsWith('/statements') ||
+    pathname.startsWith('/transactions') ||
+    pathname.startsWith('/matching') ||
     pathname.startsWith('/reconciliation') ||
+    pathname.startsWith('/settings') ||
     pathname === '/'
 
   if (isDashboardRoute && !user) {

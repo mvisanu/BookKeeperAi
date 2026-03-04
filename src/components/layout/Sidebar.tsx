@@ -2,15 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Receipt, FileText, RefreshCw, LogOut } from 'lucide-react'
+import { Receipt, FileText, RefreshCw, LogOut, LayoutDashboard, CreditCard, GitMerge, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 
 const NAV_ITEMS = [
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/receipts', label: 'Receipts', icon: Receipt },
   { href: '/statements', label: 'Bank Statements', icon: FileText },
+  { href: '/transactions', label: 'Transactions', icon: CreditCard },
+  { href: '/matching', label: 'Matching', icon: GitMerge },
   { href: '/reconciliation', label: 'Reconciliation', icon: RefreshCw },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 interface SidebarProps {
@@ -32,7 +36,7 @@ export default function Sidebar({ userEmail }: SidebarProps) {
             href={href}
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-              pathname.startsWith(href)
+              href === '/' ? pathname === '/' : pathname.startsWith(href)
                 ? 'bg-accent text-accent-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
             )}
