@@ -15,6 +15,11 @@ export async function GET() {
     { data: receipts },
     { count: matchedCount },
     { count: unmatchedCount },
+    { count: totalTracked },
+    { count: totalReceipts },
+    { count: processedReceipts },
+    { count: failedReceipts },
+    { count: categorizedTx },
   ] = await Promise.all([
     supabase
       .from('bank_transactions')
@@ -26,8 +31,7 @@ export async function GET() {
     supabase
       .from('receipts')
       .select('gst_hst_amount, pst_amount, status')
-      .eq('user_id', user.id)
-      .eq('status', 'complete'),
+      .eq('user_id', user.id),
     supabase
       .from('reconciliation_matches')
       .select('id', { count: 'exact', head: true })
@@ -38,19 +42,59 @@ export async function GET() {
       .eq('user_id', user.id)
       .eq('is_duplicate', false)
       .not('id', 'in', '(select bank_transaction_id from reconciliation_matches)'),
+    supabase
+      .from('bank_transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_duplicate', false),
+    supabase
+      .from('receipts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('receipts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'complete'),
+    supabase
+      .from('receipts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'failed'),
+    supabase
+      .from('bank_transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_duplicate', false)
+      .not('category', 'is', null),
   ])
 
   const txList = transactions ?? []
   const receiptList = receipts ?? []
+  const total = totalTracked ?? 0
+  const matched = matchedCount ?? 0
+  const totalRec = totalReceipts ?? 0
+  const processed = processedReceipts ?? 0
+  const failed = failedReceipts ?? 0
+  const categorized = categorizedTx ?? 0
 
-  // Total tax paid
-  const totalTaxPaid = receiptList.reduce((sum, r) => sum + (r.gst_hst_amount ?? 0) + (r.pst_amount ?? 0), 0)
+  // Tax paid from complete receipts
+  const totalTaxPaid = receiptList
+    .filter((r) => r.status === 'complete')
+    .reduce((sum, r) => sum + (r.gst_hst_amount ?? 0) + (r.pst_amount ?? 0), 0)
 
-  const { count: totalTracked } = await supabase
-    .from('bank_transactions')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('is_duplicate', false)
+  // Health metrics
+  const matchRate = total > 0 ? Math.round((matched / total) * 100) : 0
+  const processingSuccessRate = totalRec > 0 ? Math.round((processed / totalRec) * 100) : 100
+  const categorizationRate = total > 0 ? Math.round((categorized / total) * 100) : 0
+
+  // Overall health = weighted average of match rate (40%), processing (40%), categorization (20%)
+  const overallHealthScore = Math.round(matchRate * 0.4 + processingSuccessRate * 0.4 + categorizationRate * 0.2)
+  const healthLabel =
+    overallHealthScore >= 90 ? 'Excellent' :
+    overallHealthScore >= 75 ? 'Good' :
+    overallHealthScore >= 55 ? 'Moderate' :
+    overallHealthScore >= 35 ? 'Fair' : 'Needs Attention'
 
   // 6-month spending trend
   const monthlyMap: Record<string, number> = {}
@@ -84,7 +128,7 @@ export async function GET() {
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 8)
 
-  // Top vendors with transaction count and last date
+  // Top vendors
   const { data: allTx } = await supabase
     .from('bank_transactions')
     .select('description, amount, transaction_date')
@@ -105,7 +149,7 @@ export async function GET() {
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 10)
 
-  // Recent activity with match and receipt status
+  // Recent activity with match and receipt info
   const { data: recentTx } = await supabase
     .from('bank_transactions')
     .select('id, transaction_date, description, amount, category, reconciliation_matches(receipt_id, receipts(status, vendor_name))')
@@ -131,10 +175,22 @@ export async function GET() {
 
   return apiSuccess({
     stats: {
-      matched: matchedCount ?? 0,
+      matched,
       unmatched: unmatchedCount ?? 0,
-      totalTracked: totalTracked ?? 0,
+      totalTracked: total,
       totalTaxPaid: +totalTaxPaid.toFixed(2),
+      totalReceipts: totalRec,
+      totalTransactions: total,
+    },
+    health: {
+      overallScore: overallHealthScore,
+      overallLabel: healthLabel,
+      matchRate,
+      processingSuccessRate,
+      processedReceipts: processed,
+      totalReceipts: totalRec,
+      failedReceipts: failed,
+      categorizationRate,
     },
     spendingTrend,
     categoryBreakdown,

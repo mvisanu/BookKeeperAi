@@ -4,17 +4,24 @@ import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { CheckCircle2, CircleDot, LayoutList, Receipt, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { CheckCircle2, CircleDot, LayoutList, Receipt, Loader2, ArrowUpDown, ArrowUp, ArrowDown, CreditCard, Activity } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Vendor { vendor: string; amount: number; transactions: number; lastDate: string }
-interface Activity { id: string; transaction_date: string; vendor: string; amount: number; category: string | null; matched: boolean; hasReceipt: boolean; receiptStatus: string | null }
+interface ActivityRow { id: string; transaction_date: string; vendor: string; amount: number; category: string | null; matched: boolean; hasReceipt: boolean; receiptStatus: string | null }
+interface Health {
+  overallScore: number; overallLabel: string
+  matchRate: number
+  processingSuccessRate: number; processedReceipts: number; totalReceipts: number; failedReceipts: number
+  categorizationRate: number
+}
 interface DashboardData {
-  stats: { matched: number; unmatched: number; totalTracked: number; totalTaxPaid: number }
+  stats: { matched: number; unmatched: number; totalTracked: number; totalTaxPaid: number; totalReceipts: number; totalTransactions: number }
+  health: Health
   spendingTrend: { month: string; amount: number }[]
   categoryBreakdown: { category: string; amount: number }[]
   topVendors: Vendor[]
-  recentActivity: Activity[]
+  recentActivity: ActivityRow[]
 }
 
 type VendorSortKey = 'vendor' | 'amount' | 'transactions' | 'lastDate'
@@ -24,9 +31,28 @@ function fmt(amount: number) {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 2 }).format(amount)
 }
 
-function SortIcon({ col, active, dir }: { col: string; active: boolean; dir: SortDir }) {
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />
   return dir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-[#27C5F5]" /> : <ArrowDown className="h-3 w-3 ml-1 text-[#27C5F5]" />
+}
+
+function HealthBar({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${value}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-sm font-semibold tabular-nums w-10 text-right" style={{ color }}>{value}%</span>
+    </div>
+  )
+}
+
+function healthColor(score: number) {
+  if (score >= 90) return '#22c55e'
+  if (score >= 75) return '#27C5F5'
+  if (score >= 55) return '#f59e0b'
+  if (score >= 35) return '#f97316'
+  return '#ef4444'
 }
 
 function StatusBadge({ matched, hasReceipt, receiptStatus }: { matched: boolean; hasReceipt: boolean; receiptStatus: string | null }) {
@@ -63,10 +89,7 @@ export default function DashboardPage() {
   }, [data?.topVendors, vendorSort])
 
   function toggleSort(key: VendorSortKey) {
-    setVendorSort((prev) => prev.key === key
-      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-      : { key, dir: 'desc' }
-    )
+    setVendorSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
   }
 
   if (loading) {
@@ -77,7 +100,8 @@ export default function DashboardPage() {
     )
   }
 
-  const stats = data?.stats ?? { matched: 0, unmatched: 0, totalTracked: 0, totalTaxPaid: 0 }
+  const stats = data?.stats ?? { matched: 0, unmatched: 0, totalTracked: 0, totalTaxPaid: 0, totalReceipts: 0, totalTransactions: 0 }
+  const health = data?.health ?? { overallScore: 0, overallLabel: 'No Data', matchRate: 0, processingSuccessRate: 0, processedReceipts: 0, totalReceipts: 0, failedReceipts: 0, categorizationRate: 0 }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -87,48 +111,120 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Matched</CardTitle>
+            <CardTitle className="text-xs font-medium">Total Matched</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-[#27C5F5]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.matched}</div>
-            <p className="text-xs text-muted-foreground mt-1">Transactions matched to receipts</p>
+            <p className="text-xs text-muted-foreground mt-1">Matched items</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Unmatched</CardTitle>
+            <CardTitle className="text-xs font-medium">Total Unmatched</CardTitle>
             <CircleDot className="h-4 w-4 text-orange-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.unmatched}</div>
-            <p className="text-xs text-muted-foreground mt-1">Transactions needing a receipt</p>
+            <p className="text-xs text-muted-foreground mt-1">Need receipt</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Tracked</CardTitle>
+            <CardTitle className="text-xs font-medium">Total Tracked</CardTitle>
             <LayoutList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalTracked}</div>
-            <p className="text-xs text-muted-foreground mt-1">All imported transactions</p>
+            <p className="text-xs text-muted-foreground mt-1">All transactions</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Tax Paid</CardTitle>
+            <CardTitle className="text-xs font-medium">Total Tax Paid</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fmt(stats.totalTaxPaid)}</div>
-            <p className="text-xs text-muted-foreground mt-1">GST/HST + PST from receipts</p>
+            <div className="text-2xl font-bold text-sm">{fmt(stats.totalTaxPaid)}</div>
+            <p className="text-xs text-muted-foreground mt-1">GST/HST + PST</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-medium">Total Receipts</CardTitle>
+            <Receipt className="h-4 w-4 text-[#2DBEEB]" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalReceipts}</div>
+            <p className="text-xs text-muted-foreground mt-1">Uploaded receipts</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-medium">Total Transactions</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+            <p className="text-xs text-muted-foreground mt-1">From bank statements</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Data Health */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Data Health</CardTitle>
+          <Activity className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Overall Health */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall Health</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${healthColor(health.overallScore)}20`, color: healthColor(health.overallScore) }}>
+                  {health.overallLabel}
+                </span>
+              </div>
+              <HealthBar value={health.overallScore} color={healthColor(health.overallScore)} />
+            </div>
+
+            {/* Match Rate */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Match Rate</span>
+              </div>
+              <HealthBar value={health.matchRate} color="#27C5F5" />
+              <p className="text-xs text-muted-foreground">{stats.matched} of {stats.totalTransactions} transactions matched</p>
+            </div>
+
+            {/* Processing Success Rate */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Processing Success</span>
+              </div>
+              <HealthBar value={health.processingSuccessRate} color={health.processingSuccessRate >= 90 ? '#22c55e' : '#f59e0b'} />
+              <p className="text-xs text-muted-foreground">
+                {health.processedReceipts} of {health.totalReceipts} receipts processed
+                {health.failedReceipts > 0 && <span className="text-red-500 ml-1">· {health.failedReceipts} failed</span>}
+              </p>
+            </div>
+
+            {/* Categorization */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Categorization</span>
+              </div>
+              <HealthBar value={health.categorizationRate} color="#2DBEEB" />
+              <p className="text-xs text-muted-foreground">{health.categorizationRate}% of transactions categorized</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
@@ -180,7 +276,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Top Vendors — sortable table */}
+      {/* Top Vendors */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">Top Vendors (All Time)</CardTitle>
@@ -199,14 +295,10 @@ export default function DashboardPage() {
                       { key: 'transactions', label: 'Transactions' },
                       { key: 'lastDate', label: 'Last Transaction' },
                     ] as { key: VendorSortKey; label: string }[]).map(({ key, label }) => (
-                      <th
-                        key={key}
-                        className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none whitespace-nowrap"
-                        onClick={() => toggleSort(key)}
-                      >
+                      <th key={key} className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none whitespace-nowrap" onClick={() => toggleSort(key)}>
                         <span className="inline-flex items-center">
                           {label}
-                          <SortIcon col={key} active={vendorSort.key === key} dir={vendorSort.dir} />
+                          <SortIcon active={vendorSort.key === key} dir={vendorSort.dir} />
                         </span>
                       </th>
                     ))}
