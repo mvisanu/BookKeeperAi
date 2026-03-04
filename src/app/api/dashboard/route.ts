@@ -43,30 +43,24 @@ export async function GET() {
   const txList = transactions ?? []
   const receiptList = receipts ?? []
 
-  // Total tax paid from receipts
-  const totalTaxPaid = receiptList.reduce((sum, r) => {
-    return sum + (r.gst_hst_amount ?? 0) + (r.pst_amount ?? 0)
-  }, 0)
+  // Total tax paid
+  const totalTaxPaid = receiptList.reduce((sum, r) => sum + (r.gst_hst_amount ?? 0) + (r.pst_amount ?? 0), 0)
 
-  // Total items tracked = all non-duplicate transactions
   const { count: totalTracked } = await supabase
     .from('bank_transactions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .eq('is_duplicate', false)
 
-  // 6-month spending trend (debits only, grouped by month)
+  // 6-month spending trend
   const monthlyMap: Record<string, number> = {}
   for (let i = 5; i >= 0; i--) {
-    const key = format(subMonths(new Date(), i), 'MMM yyyy')
-    monthlyMap[key] = 0
+    monthlyMap[format(subMonths(new Date(), i), 'MMM yyyy')] = 0
   }
   for (const tx of txList) {
     if (tx.amount < 0) {
       const key = format(new Date(tx.transaction_date), 'MMM yyyy')
-      if (key in monthlyMap) {
-        monthlyMap[key] = +(monthlyMap[key] + Math.abs(tx.amount)).toFixed(2)
-      }
+      if (key in monthlyMap) monthlyMap[key] = +(monthlyMap[key] + Math.abs(tx.amount)).toFixed(2)
     }
   }
   const spendingTrend = Object.entries(monthlyMap).map(([month, amount]) => ({ month, amount }))
@@ -90,32 +84,50 @@ export async function GET() {
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 8)
 
-  // Top 5 vendors all time
+  // Top vendors with transaction count and last date
   const { data: allTx } = await supabase
     .from('bank_transactions')
-    .select('description, amount')
+    .select('description, amount, transaction_date')
     .eq('user_id', user.id)
     .eq('is_duplicate', false)
     .lt('amount', 0)
 
-  const vendorMap: Record<string, number> = {}
+  const vendorMap: Record<string, { amount: number; count: number; lastDate: string }> = {}
   for (const tx of allTx ?? []) {
-    const vendor = tx.description.split(/\s{2,}|\*|#/)[0].trim().slice(0, 30)
-    vendorMap[vendor] = +((vendorMap[vendor] ?? 0) + Math.abs(tx.amount)).toFixed(2)
+    const vendor = tx.description.split(/\s{2,}|\*|#/)[0].trim().slice(0, 40)
+    if (!vendorMap[vendor]) vendorMap[vendor] = { amount: 0, count: 0, lastDate: tx.transaction_date }
+    vendorMap[vendor].amount = +(vendorMap[vendor].amount + Math.abs(tx.amount)).toFixed(2)
+    vendorMap[vendor].count += 1
+    if (tx.transaction_date > vendorMap[vendor].lastDate) vendorMap[vendor].lastDate = tx.transaction_date
   }
-  const top5Vendors = Object.entries(vendorMap)
-    .map(([vendor, amount]) => ({ vendor, amount }))
+  const topVendors = Object.entries(vendorMap)
+    .map(([vendor, v]) => ({ vendor, amount: v.amount, transactions: v.count, lastDate: v.lastDate }))
     .sort((a, b) => b.amount - a.amount)
-    .slice(0, 5)
+    .slice(0, 10)
 
-  // Recent activity (last 10 transactions from all time)
-  const { data: recentActivity } = await supabase
+  // Recent activity with match and receipt status
+  const { data: recentTx } = await supabase
     .from('bank_transactions')
-    .select('id, transaction_date, description, amount, category')
+    .select('id, transaction_date, description, amount, category, reconciliation_matches(receipt_id, receipts(status, vendor_name))')
     .eq('user_id', user.id)
     .eq('is_duplicate', false)
     .order('transaction_date', { ascending: false })
     .limit(10)
+
+  const recentActivity = (recentTx ?? []).map((tx) => {
+    const match = Array.isArray(tx.reconciliation_matches) ? tx.reconciliation_matches[0] : null
+    const receipt = match?.receipts as { status?: string; vendor_name?: string } | null ?? null
+    return {
+      id: tx.id,
+      transaction_date: tx.transaction_date,
+      vendor: tx.description.split(/\s{2,}|\*|#/)[0].trim().slice(0, 40),
+      amount: tx.amount,
+      category: tx.category,
+      matched: !!match,
+      hasReceipt: !!receipt,
+      receiptStatus: receipt?.status ?? null,
+    }
+  })
 
   return apiSuccess({
     stats: {
@@ -126,7 +138,7 @@ export async function GET() {
     },
     spendingTrend,
     categoryBreakdown,
-    top5Vendors,
-    recentActivity: recentActivity ?? [],
+    topVendors,
+    recentActivity,
   })
 }
