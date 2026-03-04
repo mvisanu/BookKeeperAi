@@ -112,7 +112,9 @@ export default function CsvMappingModal({
       return
     }
 
-    toast.success('Import started — transactions will appear shortly')
+    const data = await res.json()
+    const count = data.transaction_count ?? 0
+    toast.success(`Import complete — ${count} transaction${count === 1 ? '' : 's'} imported`)
     onConfirmed()
     onOpenChange(false)
   }

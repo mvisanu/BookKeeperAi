@@ -69,8 +69,8 @@ export default function StatementUploadZone() {
       const result = await response.json()
       setProgress(100)
 
-      if (result.status === 'awaiting_mapping' && result.csv_column_mapping) {
-        setCsvModal({ statementId: result.id, detection: result.csv_column_mapping })
+      if (result.status === 'awaiting_mapping') {
+        setCsvModal({ statementId: result.id, detection: result.csv_column_mapping ?? { available_columns: [], sample_rows: [], confidence: 0, detected_date_col: '', detected_description_col: '', detected_amount_col: null, detected_debit_col: null, detected_credit_col: null } })
       } else {
         setProcessingIds((prev) => [...prev, result.id])
         toast.success(`${file.name} uploaded — processing started`)
