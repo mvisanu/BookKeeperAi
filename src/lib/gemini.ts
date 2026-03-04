@@ -214,6 +214,68 @@ export async function extractStatementTransactions(
 }
 
 // ────────────────────────────────────────────────────────────
+// Batch transaction categorization
+// ────────────────────────────────────────────────────────────
+
+const CATEGORIZE_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          category: { type: 'string' },
+        },
+        required: ['id', 'category'],
+      },
+    },
+  },
+  required: ['results'],
+}
+
+const CATEGORIES = [
+  'Food & Dining', 'Groceries', 'Shopping', 'Transportation', 'Fuel',
+  'Entertainment', 'Healthcare', 'Utilities', 'Travel', 'Accommodation',
+  'Business Services', 'Education', 'Personal Care', 'Insurance',
+  'Subscriptions', 'Fees & Charges', 'Transfer', 'Income', 'Other',
+]
+
+export async function categorizeBatch(
+  transactions: { id: string; description: string; amount: number }[]
+): Promise<{ id: string; category: string }[]> {
+  const client = getClient()
+
+  const prompt = `Categorize each bank transaction into exactly one of these categories:
+${CATEGORIES.join(', ')}
+
+Rules:
+- Use the description to infer the merchant/vendor type
+- Negative amounts are expenses, positive are income/credits
+- Return the exact category string from the list above
+- If unsure, use "Other"
+
+Transactions:
+${transactions.map((t) => `{"id":"${t.id}","description":"${t.description}","amount":${t.amount}}`).join('\n')}`
+
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: [{ text: prompt }],
+    config: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: CATEGORIZE_JSON_SCHEMA,
+    },
+  })
+
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error('Empty response from Gemini')
+
+  const parsed = JSON.parse(text)
+  return parsed.results ?? []
+}
+
+// ────────────────────────────────────────────────────────────
 // CSV column mapping detection
 // ────────────────────────────────────────────────────────────
 
