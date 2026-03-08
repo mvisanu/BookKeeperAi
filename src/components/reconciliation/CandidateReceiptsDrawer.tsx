@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { BankTransaction, Receipt } from '@/types'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 
 interface CandidateReceiptsDrawerProps {
   transaction: BankTransaction | null
@@ -29,7 +27,6 @@ export default function CandidateReceiptsDrawer({
     fetch('/api/receipts?status=complete&limit=200')
       .then((r) => r.json())
       .then((data) => {
-        // Sort by proximity to transaction
         const sorted = (data.data as Receipt[])
           .filter((r) => !r.is_matched && r.total_amount !== null && r.transaction_date !== null)
           .sort((a, b) => {
@@ -66,34 +63,61 @@ export default function CandidateReceiptsDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Find a Receipt Match</DrawerTitle>
+          <DrawerTitle style={{ color: 'oklch(0.93 0.02 259)' }}>Find a Receipt Match</DrawerTitle>
           {transaction && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm mt-0.5" style={{ color: 'oklch(0.55 0.04 262)' }}>
               Matching: {transaction.description} · ${Math.abs(transaction.amount).toFixed(2)} on{' '}
               {transaction.transaction_date}
             </p>
           )}
         </DrawerHeader>
-        <div className="px-4 pb-4 space-y-2 max-h-[60vh] overflow-auto">
-          {loading && [1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+        <div className="px-4 pb-6 space-y-2 max-h-[60vh] overflow-auto">
+          {loading && [1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-16 w-full rounded-xl animate-pulse"
+              style={{ background: 'oklch(1 0 0 / 4%)' }}
+            />
+          ))}
           {!loading && candidates.length === 0 && (
-            <p className="py-8 text-center text-muted-foreground">No unmatched receipts found.</p>
+            <div
+              className="flex items-center justify-center rounded-xl py-10 text-center"
+              style={{ background: 'oklch(1 0 0 / 2%)', border: '1px dashed oklch(1 0 0 / 10%)' }}
+            >
+              <p className="text-sm" style={{ color: 'oklch(0.45 0.04 262)' }}>No unmatched receipts found.</p>
+            </div>
           )}
           {candidates.map((receipt) => (
             <div
               key={receipt.id}
-              className="flex items-center justify-between rounded-lg border p-3"
+              className="flex items-center justify-between rounded-xl p-3 transition-colors"
+              style={{
+                background: 'oklch(1 0 0 / 3%)',
+                border: '1px solid oklch(1 0 0 / 7%)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'oklch(1 0 0 / 5%)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'oklch(1 0 0 / 3%)')}
             >
               <div>
-                <p className="text-sm font-medium">{receipt.vendor_name ?? 'Unknown vendor'}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm font-medium" style={{ color: 'oklch(0.82 0.02 259)' }}>
+                  {receipt.vendor_name ?? 'Unknown vendor'}
+                </p>
+                <p className="text-xs mt-0.5 nums" style={{ color: 'oklch(0.55 0.04 262)' }}>
                   {receipt.transaction_date} · ${receipt.total_amount?.toFixed(2) ?? '—'}
                   {receipt.category ? ` · ${receipt.category}` : ''}
                 </p>
               </div>
-              <Button size="sm" onClick={() => handleMatch(receipt)}>
+              <button
+                onClick={() => handleMatch(receipt)}
+                className="rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-150 shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, #27C5F5, #5EB5FF)',
+                  color: 'oklch(0.09 0.04 270)',
+                  boxShadow: '0 0 12px rgba(39,197,245,0.25)',
+                }}
+              >
                 Match
-              </Button>
+              </button>
             </div>
           ))}
         </div>

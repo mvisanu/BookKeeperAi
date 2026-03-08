@@ -283,11 +283,20 @@ function Testimonial({ quote, name, role, rating }: { quote: string; name: strin
 
 /* ─── Pricing card ────────────────────────────────────────────── */
 function PricingCard({
-  name, price, period, desc, features, highlight, cta,
+  name, price, period, desc, features, highlight, cta, onCtaClick,
 }: {
   name: string; price: string; period?: string; desc: string
   features: string[]; highlight?: boolean; cta: string
+  onCtaClick?: () => void
 }) {
+  const [loading, setLoading] = useState(false)
+
+  const handleClick = async () => {
+    if (!onCtaClick) return
+    setLoading(true)
+    try { await onCtaClick() } finally { setLoading(false) }
+  }
+
   return (
     <div
       className={`relative flex flex-col rounded-2xl p-8 transition-all duration-300 hover:-translate-y-1 ${
@@ -322,17 +331,33 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <Link
-        href="/sign-up"
-        className={`w-full rounded-xl py-3.5 text-center text-sm font-bold transition-all duration-200 ${
-          highlight
-            ? 'text-white shadow-lg hover:opacity-90'
-            : 'bg-slate-900 text-white hover:bg-slate-800'
-        }`}
-        style={highlight ? { background: 'linear-gradient(135deg,#0CB8D4,#0891b2)' } : {}}
-      >
-        {cta}
-      </Link>
+      {onCtaClick ? (
+        <button
+          onClick={handleClick}
+          disabled={loading}
+          className={`w-full rounded-xl py-3.5 text-center text-sm font-bold transition-all duration-200 ${
+            highlight ? 'text-white shadow-lg hover:opacity-90' : 'bg-slate-900 text-white hover:bg-slate-800'
+          }`}
+          style={{
+            ...(highlight ? { background: 'linear-gradient(135deg,#0CB8D4,#0891b2)' } : {}),
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? 'Redirecting…' : cta}
+        </button>
+      ) : (
+        <Link
+          href="/sign-up"
+          className={`w-full rounded-xl py-3.5 text-center text-sm font-bold transition-all duration-200 ${
+            highlight
+              ? 'text-white shadow-lg hover:opacity-90'
+              : 'bg-slate-900 text-white hover:bg-slate-800'
+          }`}
+          style={highlight ? { background: 'linear-gradient(135deg,#0CB8D4,#0891b2)' } : {}}
+        >
+          {cta}
+        </Link>
+      )}
     </div>
   )
 }
@@ -341,6 +366,20 @@ function PricingCard({
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+
+  async function handleTrialCheckout() {
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier: 'pro', trial_period_days: 14 }),
+    })
+    if (res.status === 401) {
+      window.location.href = '/sign-up?plan=pro&trial=true'
+      return
+    }
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+  }
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 20)
@@ -671,6 +710,7 @@ export default function LandingPage() {
               desc="For growing businesses with regular bookkeeping."
               features={['Unlimited receipts', 'Unlimited statements', 'Priority AI processing', 'Full reconciliation', 'GST/HST + PST reports', 'Accountant exports', 'Email support']}
               highlight cta="Start 14-day free trial"
+              onCtaClick={handleTrialCheckout}
             />
             <PricingCard
               name="Enterprise" price="Custom"

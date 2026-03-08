@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { extractReceiptData } from '@/lib/gemini'
+import { canUploadReceipt } from '@/lib/plans'
 import { CreateReceiptSchema } from '@/types'
 import type { Database } from '@/types/supabase'
 
@@ -53,6 +54,11 @@ export async function POST(request: NextRequest) {
 
   if (parsed.data.file_size > 10485760) {
     return apiError('File exceeds 10 MB limit', 'FILE_TOO_LARGE', 422)
+  }
+
+  const planCheck = await canUploadReceipt(user.id)
+  if (!planCheck.allowed) {
+    return apiError(planCheck.reason ?? 'Plan limit reached', 'PLAN_LIMIT_REACHED', 403)
   }
 
   // Insert receipt record

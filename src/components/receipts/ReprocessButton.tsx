@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 
 export default function ReprocessButton({ pendingCount }: { pendingCount: number }) {
@@ -37,17 +36,28 @@ export default function ReprocessButton({ pendingCount }: { pendingCount: number
   }
 
   return (
-    <Button
+    <button
       onClick={handleReprocess}
       disabled={loading}
-      variant="outline"
-      className="shrink-0 gap-2 border-[#27C5F5] text-[#27C5F5] hover:bg-[rgba(39,197,245,0.1)]"
+      className="shrink-0 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
+      style={{
+        background: 'oklch(1 0 0 / 5%)',
+        border: '1px solid rgba(39,197,245,0.3)',
+        color: '#27C5F5',
+        opacity: loading ? 0.6 : 1,
+      }}
+      onMouseEnter={(e) => {
+        if (!loading) e.currentTarget.style.background = 'rgba(39,197,245,0.08)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'oklch(1 0 0 / 5%)'
+      }}
     >
       {loading ? (
-        <><Loader2 className="h-4 w-4 animate-spin" />Processing…</>
+        <><Loader2 className="h-3.5 w-3.5 animate-spin" />Processing…</>
       ) : (
-        <><RefreshCw className="h-4 w-4" />Reprocess {pendingCount} Pending</>
+        <><RefreshCw className="h-3.5 w-3.5" />Reprocess {pendingCount} Pending</>
       )}
-    </Button>
+    </button>
   )
 }

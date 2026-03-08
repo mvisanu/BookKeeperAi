@@ -2,10 +2,10 @@ import ReconciliationView from '@/components/reconciliation/ReconciliationView'
 
 export default function ReconciliationPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl animate-page-enter">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Reconciliation</h2>
-        <p className="text-muted-foreground mt-1">
+        <h2 className="text-xl font-bold tracking-tight" style={{ color: 'oklch(0.93 0.02 259)' }}>Reconciliation</h2>
+        <p className="text-sm mt-0.5" style={{ color: 'oklch(0.48 0.04 262)' }}>
           Auto-match bank transactions with receipts or manually link them.
         </p>
       </div>

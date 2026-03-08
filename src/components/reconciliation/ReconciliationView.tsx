@@ -6,8 +6,6 @@ import ReconciliationSummaryBar from './ReconciliationSummaryBar'
 import MatchedPairRow from './MatchedPairRow'
 import UnmatchedTransactionRow from './UnmatchedTransactionRow'
 import UnmatchedReceiptRow from './UnmatchedReceiptRow'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
 
 type FullMatch = ReconciliationMatch & {
   transaction: BankTransaction
@@ -54,7 +52,11 @@ export default function ReconciliationView() {
     return (
       <div className="space-y-3">
         {[...Array(4)].map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full" />
+          <div
+            key={i}
+            className="h-16 w-full rounded-xl animate-pulse"
+            style={{ background: 'oklch(1 0 0 / 4%)' }}
+          />
         ))}
       </div>
     )
@@ -71,7 +73,7 @@ export default function ReconciliationView() {
 
       {matches.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold text-green-700">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: '#10D9A1' }}>
             Matched Pairs ({matches.length})
           </h3>
           <div className="space-y-2">
@@ -91,9 +93,9 @@ export default function ReconciliationView() {
 
       {unmatchedTx.length > 0 && (
         <>
-          {matches.length > 0 && <Separator />}
+          {matches.length > 0 && <div style={{ borderTop: '1px solid oklch(1 0 0 / 7%)' }} />}
           <section>
-            <h3 className="mb-3 text-sm font-semibold text-yellow-700">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: '#F5A623' }}>
               Unmatched Transactions ({unmatchedTx.length})
             </h3>
             <div className="space-y-2">
@@ -107,9 +109,9 @@ export default function ReconciliationView() {
 
       {unmatchedReceipts.length > 0 && (
         <>
-          {(matches.length > 0 || unmatchedTx.length > 0) && <Separator />}
+          {(matches.length > 0 || unmatchedTx.length > 0) && <div style={{ borderTop: '1px solid oklch(1 0 0 / 7%)' }} />}
           <section>
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.48 0.04 262)' }}>
               Unmatched Receipts ({unmatchedReceipts.length})
             </h3>
             <div className="space-y-2">
@@ -122,9 +124,12 @@ export default function ReconciliationView() {
       )}
 
       {matches.length === 0 && unmatchedTx.length === 0 && unmatchedReceipts.length === 0 && (
-        <div className="py-16 text-center text-muted-foreground">
-          <p className="text-lg font-medium">No data yet</p>
-          <p className="mt-1 text-sm">
+        <div
+          className="flex flex-col items-center justify-center rounded-xl py-16 text-center"
+          style={{ background: 'oklch(1 0 0 / 2%)', border: '1px dashed oklch(1 0 0 / 10%)' }}
+        >
+          <p className="text-sm font-semibold" style={{ color: 'oklch(0.65 0.04 262)' }}>No data yet</p>
+          <p className="mt-1 text-xs" style={{ color: 'oklch(0.45 0.04 262)' }}>
             Import bank statements and upload receipts to start reconciling.
           </p>
         </div>

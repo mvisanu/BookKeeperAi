@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { apiSuccess, apiError } from '@/lib/api/response'
+import { canUploadStatement } from '@/lib/plans'
 import { CreateStatementSchema } from '@/types'
 import type { Database } from '@/types/supabase'
 
@@ -34,6 +35,11 @@ export async function POST(request: NextRequest) {
 
   if (parsed.data.file_size > 20971520) {
     return apiError('File exceeds 20 MB limit', 'FILE_TOO_LARGE', 422)
+  }
+
+  const planCheck = await canUploadStatement(user.id)
+  if (!planCheck.allowed) {
+    return apiError(planCheck.reason ?? 'Plan limit reached', 'PLAN_LIMIT_REACHED', 403)
   }
 
   const isCSV = parsed.data.file_mime_type === 'text/csv'

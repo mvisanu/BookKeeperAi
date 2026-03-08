@@ -10,18 +10,33 @@ export type Database = {
         Row: {
           id: string
           email: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          stripe_price_id: string | null
+          plan: Database['public']['Enums']['plan_tier']
+          plan_expires_at: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id: string
           email: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_price_id?: string | null
+          plan?: Database['public']['Enums']['plan_tier']
+          plan_expires_at?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           email?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_price_id?: string | null
+          plan?: Database['public']['Enums']['plan_tier']
+          plan_expires_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -292,6 +307,7 @@ export type Database = {
       statement_status: 'pending' | 'awaiting_mapping' | 'processing' | 'complete' | 'failed'
       expense_type: 'business' | 'personal'
       match_type: 'auto' | 'manual'
+      plan_tier: 'free' | 'solo' | 'pro'
     }
   }
 }

@@ -28,11 +28,11 @@ export default async function ReceiptsPage() {
   const pendingCount = receipts.filter((r) => r.status === 'pending' || r.status === 'failed').length
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl animate-page-enter">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Receipts</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-xl font-bold tracking-tight" style={{ color: 'oklch(0.93 0.02 259)' }}>Receipts</h2>
+          <p className="text-sm mt-0.5" style={{ color: 'oklch(0.48 0.04 262)' }}>
             Upload receipts and let AI extract the details automatically.
           </p>
         </div>

@@ -7,7 +7,6 @@ import type { BankTransaction } from '@/types'
 import type { TransactionFilterValues } from '@/components/statements/TransactionFilters'
 import TransactionFilters from '@/components/statements/TransactionFilters'
 import TransactionTable from '@/components/statements/TransactionTable'
-import { Button } from '@/components/ui/button'
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([])
@@ -76,26 +75,31 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl animate-page-enter">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Transactions</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-xl font-bold tracking-tight" style={{ color: 'oklch(0.93 0.02 259)' }}>Transactions</h2>
+          <p className="text-sm mt-0.5" style={{ color: 'oklch(0.48 0.04 262)' }}>
             View and manage all imported bank transactions.
           </p>
         </div>
-        <Button
+        <button
           onClick={handleAutoCategorize}
           disabled={categorizing}
-          className="shrink-0 gap-2"
-          style={{ backgroundColor: '#27C5F5', color: '#fff' }}
+          className="shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-150"
+          style={{
+            background: 'linear-gradient(135deg, #27C5F5, #5EB5FF)',
+            color: 'oklch(0.09 0.04 270)',
+            boxShadow: categorizing ? 'none' : '0 0 20px rgba(39,197,245,0.35)',
+            opacity: categorizing ? 0.6 : 1,
+          }}
         >
           {categorizing ? (
             <><Loader2 className="h-4 w-4 animate-spin" />Categorizing…</>
           ) : (
             <><Sparkles className="h-4 w-4" />Auto-Categorize</>
           )}
-        </Button>
+        </button>
       </div>
       <TransactionFilters onChange={handleFilterChange} />
       <TransactionTable
